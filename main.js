@@ -11,6 +11,10 @@ const CreateWindow = () => {
 
 app.whenReady().then(() => {
     CreateWindow();
+
+    app.on('activate', () => {
+        if (BrowserWindow.getAllWindows().length === 0) CreateWindow();
+    });
 });
 
 app.on('window-all-closed', () => {
