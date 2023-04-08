@@ -12,7 +12,7 @@ export default class KeyVault {
      * Получить список секретов
      */
     async fetch(): Promise<KVSecret[]> {
-        const result = await electronAPI.fetchSecrets(this.origin);
+        const result = await window.electronAPI.fetchSecrets(this.origin);
         this.secrets = result.map(secret => new KVSecret(secret, this, false));
 
         return this.secrets;

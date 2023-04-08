@@ -1,6 +1,7 @@
 const { app, BrowserWindow, ipcMain, Menu, MenuItem, dialog, nativeTheme } = require("electron");
 const path = require('path');
 const fs = require('fs');
+const { globalParams } = require("./global-params");
 
 if (require('electron-squirrel-startup')) app.quit();
 
@@ -10,6 +11,8 @@ let mainWindow;
 let editingWindow;
 let mainWindowMenu;
 
+let selectedKV;
+
 function createMainWindow() {
     settings = getSettings();
     const win = new BrowserWindow({
@@ -17,7 +20,7 @@ function createMainWindow() {
         minWidth: 650,
         minHeight: 400,
         webPreferences: {
-            preload: path.join(__dirname, 'preload.js')
+            preload: path.join(__dirname, 'preload-main.js')
         },
     });
     vaults = getVaults(win);
@@ -44,11 +47,11 @@ function createMainWindow() {
 
 function createVaultEditWindow() {
     const win = new BrowserWindow({
-        minWidth: 650,
-        minHeight: 400,
+        height: 600,
+        width: 750,
         resizable: false,
         webPreferences: {
-            preload: path.join(__dirname, 'preload.js')
+            preload: path.join(__dirname, 'preload-create.js')
         },
     });
     win.removeMenu();
@@ -170,7 +173,7 @@ function createMenu(win, settings) {
                 label: kv.name || kv.kvName,
                 type: 'radio',
                 click: (item, window) => {
-                    win.webContents.send('kv-selected', kv)
+                    win.webContents.send('kv-selected', kv);
                 }
             }))
         }, {
@@ -182,6 +185,10 @@ function createMenu(win, settings) {
                 type: 'normal',
                 click: (item, window) => {
                     createVaultEditWindow();
+                    
+                    globalParams.selectedKV = kv;
+                    globalParams.isEditingNew = false;
+                    
                     window.close();
                 }
             }))
@@ -220,6 +227,9 @@ function createMenu(win, settings) {
             label: 'Добавить',
             click: (item, window) => {
                 createVaultEditWindow();
+                globalParams.selectedKV = {};
+                globalParams.isEditingNew = true;
+                
                 window.close();
             }
         }]
@@ -314,7 +324,7 @@ app.whenReady().then(() => {
         });
         
 
-        await new Promise(res => setTimeout(res, 2000));
+        // await new Promise(res => setTimeout(res, 2000));
 
         mainWindowMenu.items.forEach(item => {
             item.submenu.items.forEach(itemSubmenu => {
@@ -334,7 +344,7 @@ app.whenReady().then(() => {
         });
 
         const { secretName, kv } = opts;
-        await new Promise(res => setTimeout(res, 2000));
+        // await new Promise(res => setTimeout(res, 2000));
 
         mainWindowMenu.items.forEach(item => {
             item.submenu.items.forEach(itemSubmenu => {

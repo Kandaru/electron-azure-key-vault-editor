@@ -19,3 +19,4 @@ declare namespace electronAPI {
 }
 
 declare var selectedKeyVault: IKeyVault;
+declare var allKeyVaults: IKeyVault[];
