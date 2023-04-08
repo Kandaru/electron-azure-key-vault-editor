@@ -1,10 +1,10 @@
 <script lang="ts">
   import { tick } from "svelte";
-  import KeyVault from "./classes/KeyVault";
+  import KeyVault from "../classes/KeyVault";
   import Overlay from "./lib/Overlay.svelte";
   import SecretEditor from "./lib/SecretEditor.svelte";
   import SecretsList from "./lib/SecretsList.svelte";
-  import type KVSecret from "./classes/KVSecret";
+  import type KVSecret from "../classes/KVSecret";
   
   let selectedKeyVault: KeyVault;
   let secrets: KVSecret[] = [];

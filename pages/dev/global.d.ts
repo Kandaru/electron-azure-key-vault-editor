@@ -10,7 +10,7 @@ interface IKeyVault {
     ati: string;
 }
 
-namespace electronAPI {
+declare namespace electronAPI {
     function onThemeChange(callback: (theme: 'dark' | 'light') => void): void;
     function onFormat(callback: () => void): void;
     function onKVSelected(callback: (kv: IKeyVault) => void): void;

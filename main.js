@@ -4,8 +4,14 @@ const fs = require('fs');
 
 if (require('electron-squirrel-startup')) app.quit();
 
+let settings;
+let vaults;
+let mainWindow;
+let editingWindow;
+let mainWindowMenu;
+
 function createMainWindow() {
-    const settings = getSettings();
+    settings = getSettings();
     const win = new BrowserWindow({
         ...settings,
         minWidth: 650,
@@ -14,47 +20,9 @@ function createMainWindow() {
             preload: path.join(__dirname, 'preload.js')
         },
     });
-    const vaults = getVaults(win);
-    const menu = createMenu(win, vaults);
+    vaults = getVaults(win);
+    mainWindowMenu = createMenu(win, vaults);
 
-    // Получение списка секретов в хранилище
-    ipcMain.handle('fetch-secrets', async (kv) => {
-        menu.items.forEach(item => {
-            item.submenu.items.forEach(itemSubmenu => {
-                itemSubmenu.enabled = false;
-            })
-        });
-        
-
-        await new Promise(res => setTimeout(res, 2000));
-
-        menu.items.forEach(item => {
-            item.submenu.items.forEach(itemSubmenu => {
-                itemSubmenu.enabled = true;
-            })
-        });
-
-        return ['test 123'];
-    });
-
-    // Получение содержимого секрета
-    ipcMain.handle('fetch-secret', async (opts) => {
-        menu.items.forEach(item => {
-            item.submenu.items.forEach(itemSubmenu => {
-                itemSubmenu.enabled = false;
-            })
-        });
-
-        const { secretName, kv } = opts;
-        await new Promise(res => setTimeout(res, 2000));
-
-        menu.items.forEach(item => {
-            item.submenu.items.forEach(itemSubmenu => {
-                itemSubmenu.enabled = true;
-            })
-        });
-        return JSON.stringify(opts);
-    });
 
     win.loadFile('./pages/build/index.html').then(() => {
         win.webContents.send('kv-selected', vaults[0]);
@@ -69,6 +37,30 @@ function createMainWindow() {
         settings.height = winSize[1];
 
         saveSettings(win, settings);
+    });
+
+    mainWindow = win;
+}
+
+function createVaultEditWindow() {
+    const win = new BrowserWindow({
+        minWidth: 650,
+        minHeight: 400,
+        resizable: false,
+        webPreferences: {
+            preload: path.join(__dirname, 'preload.js')
+        },
+    });
+    win.removeMenu();
+
+    win.loadFile('./pages/build/create.html').then(() => {
+        win.webContents.send('kv-selected', vaults[0]);
+    });
+
+    editingWindow = win;
+
+    win.on('close', () => {
+        createMainWindow();
     });
 }
 
@@ -151,7 +143,7 @@ function getVaults(win) {
     }
 }
 
-function saveVaults(win, newSettings) {
+function saveVaults(win, newVaults) {
     const fileName = 'vaults-cfg.json';
     const filePath = path.join(__dirname, fileName);
     const fileExist = fs.existsSync(filePath);
@@ -161,7 +153,7 @@ function saveVaults(win, newSettings) {
             fs.unlinkSync(filePath);
         }
 
-        fs.writeFileSync(filePath, newSettings);
+        fs.writeFileSync(filePath, JSON.stringify(newVaults));
     } catch (error) {
         dialog.showMessageBox(win, { message: 'Файл с хранилищами содержит недопустимое значение.', title: 'Ошибка' });
     }
@@ -189,7 +181,8 @@ function createMenu(win, settings) {
                 label: kv.name || kv.kvName,
                 type: 'normal',
                 click: (item, window) => {
-                    console.log('Edit', kv);
+                    createVaultEditWindow();
+                    window.close();
                 }
             }))
         }, {
@@ -200,7 +193,25 @@ function createMenu(win, settings) {
                 label: kv.name || kv.kvName,
                 type: 'normal',
                 click: (item, window) => {
-                    console.log('Delete', kv);
+                    const result = dialog.showMessageBoxSync(window, {
+                        title: 'Удаление',
+                        message: `Удалить хранилище ${kv.name || kv.kvName} из списка сохранённых?`,
+                        buttons: [
+                            'Да',
+                            'Отмена'
+                        ],
+                        cancelId: 1,
+                        
+                    });
+
+                    if (result === 1) return;
+
+                    vaults = vaults.filter(vault => vault !== kv);
+
+                    saveVaults(window, vaults);
+
+                    app.relaunch();
+                    window.close();
                 }
             }))
         }, {
@@ -208,7 +219,8 @@ function createMenu(win, settings) {
         }, {
             label: 'Добавить',
             click: (item, window) => {
-                console.log('Create');
+                createVaultEditWindow();
+                window.close();
             }
         }]
     });
@@ -292,6 +304,45 @@ function createMenu(win, settings) {
 
 app.whenReady().then(() => {
     createMainWindow();
+    
+    // Получение списка секретов в хранилище
+    ipcMain.handle('fetch-secrets', async (kv) => {
+        mainWindowMenu.items.forEach(item => {
+            item.submenu.items.forEach(itemSubmenu => {
+                itemSubmenu.enabled = false;
+            })
+        });
+        
+
+        await new Promise(res => setTimeout(res, 2000));
+
+        mainWindowMenu.items.forEach(item => {
+            item.submenu.items.forEach(itemSubmenu => {
+                itemSubmenu.enabled = true;
+            })
+        });
+
+        return ['test 123'];
+    });
+
+    // Получение содержимого секрета
+    ipcMain.handle('fetch-secret', async (opts) => {
+        mainWindowMenu.items.forEach(item => {
+            item.submenu.items.forEach(itemSubmenu => {
+                itemSubmenu.enabled = false;
+            })
+        });
+
+        const { secretName, kv } = opts;
+        await new Promise(res => setTimeout(res, 2000));
+
+        mainWindowMenu.items.forEach(item => {
+            item.submenu.items.forEach(itemSubmenu => {
+                itemSubmenu.enabled = true;
+            })
+        });
+        return JSON.stringify(opts);
+    });
 
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createMainWindow();

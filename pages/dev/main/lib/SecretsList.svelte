@@ -1,6 +1,6 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
-    import type KVSecret from "../classes/KVSecret";
+    import type KVSecret from "../../classes/KVSecret";
 
     export let secrets: KVSecret[] = [];
     export let selectedSecret: KVSecret = secrets[0];

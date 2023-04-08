@@ -6,7 +6,7 @@
     import { globalSettings } from "../globalSettings";
     import { js as jsBeautify } from "js-beautify";
     import { onMount } from "svelte";
-    import type KVSecret from "../classes/KVSecret";
+    import type KVSecret from "../../classes/KVSecret";
 
     export let selectedSecret: KVSecret;
 
