@@ -289,7 +289,8 @@ function createMenu(win) {
                 label: 'Импорт',
                 click: (item, window) => {
                     console.log('Import');
-                }
+                },
+                enabled: false
             }
         ]
     });

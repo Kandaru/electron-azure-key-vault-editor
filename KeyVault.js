@@ -36,7 +36,10 @@ class KeyVault {
     }
 
     async deleteSecret(secretName) {
-        await this.client.beginDeleteSecret(secretName);
+        const deletingProcess = await this.client.beginDeleteSecret(secretName);
+
+        await deletingProcess.pollUntilDone();
+
         await this.client.purgeDeletedSecret(secretName);
     }
 }

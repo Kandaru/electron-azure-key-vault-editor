@@ -56,15 +56,12 @@
         } catch (error) {
             dispatch('error', error);
         }
+
         dispatch('save', false);
     }
 
     async function del() {
         dispatch('delete', true);
-
-        if (selectedSecret.isNew) {
-            selectedSecret = undefined;
-        }
 
         try {
             const result = await selectedSecret.delete();
@@ -112,7 +109,7 @@
             >Сохранить</button
         >
         <button
-            disabled={selectedSecret.isNew || !isValid}
+            disabled={selectedSecret.isNew}
             on:click={del}
             class="min-h-[60px] w-full rounded-md bg-red-600 hover:bg-red-700 active:bg-red-800 disabled:bg-red-300 disabled:hover:bg-red-300 text-3xl text-white font-semibold"
             >Удалить</button

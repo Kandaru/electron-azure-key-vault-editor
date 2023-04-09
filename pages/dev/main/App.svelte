@@ -80,11 +80,18 @@
     }
   }
 
-  function onSaveSecret(status: boolean) {
+  async function onSaveSecret(status: boolean) {
     savingSecret = status;
 
     if (!status && !secrets.includes(selectedSecret)) {
+      const temp = selectedSecret;
+
       secrets = [...secrets, selectedSecret];
+      selectedSecret = undefined;
+
+      await tick();
+
+      selectedSecret = temp;
     }
   }
 
@@ -183,7 +190,7 @@
         {selectedSecret} 
         on:error={({ detail }) => catchError(detail)} 
         on:delete={({ detail }) => onDeleteSecret(detail)} 
-        on:save={({ detail }) => savingSecret = detail} />
+        on:save={({ detail }) => onSaveSecret(detail)} />
     {/if}
   {:else}
     <Overlay>
@@ -192,6 +199,6 @@
   {/if}
 
   {#if !amoTokenDataObject.readyStatus}
-    <AmoToken {amoTokenDataObject} on:amoToken={({ detail }) => onSaveSecret(detail)} />
+    <AmoToken {amoTokenDataObject} on:amoToken={({ detail }) => fetchingAmo = detail} />
   {/if}
 </div>
