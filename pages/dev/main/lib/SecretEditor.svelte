@@ -11,7 +11,7 @@
     export let selectedSecret: KVSecret;
 
     const dispatch = createEventDispatcher<{
-        delete: void;
+        delete: boolean;
         error: Error;
         save: boolean;
     }>();
@@ -60,6 +60,12 @@
     }
 
     async function del() {
+        dispatch('delete', true);
+
+        if (selectedSecret.isNew) {
+            selectedSecret = undefined;
+        }
+
         try {
             const result = await selectedSecret.delete();
 
@@ -70,7 +76,7 @@
             return dispatch('error', error);
         }
 
-        dispatch('delete');
+        dispatch('delete', false);
     }
 
     onMount(() => {

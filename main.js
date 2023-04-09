@@ -1,6 +1,8 @@
 const { app, BrowserWindow, ipcMain, Menu, MenuItem, dialog, nativeTheme } = require("electron");
 const path = require('path');
 const fs = require('fs');
+const { homedir } = require("os");
+const KeyVault = require("./KeyVault");
 
 if (require('electron-squirrel-startup')) app.quit();
 
@@ -26,10 +28,8 @@ function createMainWindow() {
     editingData.allKVs = vaults;
     mainWindowMenu = createMenu(win, vaults);
 
-    win.loadFile('./pages/build/index.html').then(() => {
-        win.webContents.send('kv-selected', vaults[0]);
-    });
-    
+    win.loadFile('./pages/build/index.html')
+
     win.webContents.openDevTools();
 
     win.on('close', () => {
@@ -173,6 +173,8 @@ function createMenu(win) {
                 label: kv.name || kv.kvName,
                 type: 'radio',
                 click: (item, window) => {
+                    editingData.selectedKV = kv;
+
                     win.webContents.send('kv-selected', kv);
                 }
             }))
@@ -215,7 +217,14 @@ function createMenu(win) {
                     vaults = vaults.filter(vault => vault !== kv);
 
                     saveVaults(window, vaults);
-                    win.webContents.send('kv-selected', vaults[0]);
+
+                    if (!vaults.length) {
+                        editingData.selectedKV = undefined;
+                        win.webContents.send('kv-selected', undefined);
+                    } else if (kv === editingData.selectedKV) {
+                        editingData.selectedKV = vaults[0];
+                        win.webContents.send('kv-selected', vaults[0]);
+                    }
 
                     createMenu(win);
                 }
@@ -243,17 +252,17 @@ function createMenu(win) {
                     {
                         label: 'Подписка',
                         click: (item, window) => {
-                            console.log('Add Subs');
+                            win.webContents.send('secret-function', 'subscription');
                         }
                     }, {
                         label: 'Profitbase',
                         click: (item, window) => {
-                            console.log('Add Profitbase');
+                            win.webContents.send('secret-function', 'profitbase');
                         }
                     }, {
                         label: 'AmoCRM',
                         click: (item, window) => {
-                            console.log('Add AmoCRM');
+                            win.webContents.send('secret-function', 'amocrm');
                         }
                     }
                 ]
@@ -267,12 +276,12 @@ function createMenu(win) {
                     {
                         label: 'Все',
                         click: (item, window) => {
-                            console.log('Export All');
+                            exportSecrets(['1', '2', '3']);
                         }
                     }, {
                         label: 'Выбранный',
                         click: (item, window) => {
-                            console.log('Export Selected');
+                            exportSecrets([editingData.selectedSecretName]);
                         }
                     }
                 ]
@@ -300,7 +309,7 @@ function createMenu(win) {
                 checked: nativeTheme.shouldUseDarkColors
             }
         ]
-    })
+    });
 
     menu.append(voltesMenuItem);
     menu.append(functionsMenuItem);
@@ -311,45 +320,85 @@ function createMenu(win) {
     return menu;
 }
 
+async function exportSecrets(secretNames) {
+    if (!editingData.selectedSecretName || !editingData.selectedKV) return;
+
+    const savePath = dialog.showSaveDialogSync(mainWindow ?? editingWindow, {
+        defaultPath: path.resolve(homedir()),
+        filters: [ { name: 'JSON', extensions: ['json'] }, { name: 'Text', extensions: ['txt'] } ]
+    });
+
+    const data = {};
+    const keyVault = new KeyVault(editingData.selectedKV);   
+
+    for (let index = 0; index < secretNames.length; index++) {
+        const secretName = secretNames[index];
+        
+        data[secretName] = await keyVault.getSecretContent(secretName);  
+    }
+
+    fs.writeFileSync(savePath, JSON.stringify(data, undefined, '    '));
+}
+
 app.whenReady().then(() => {
     createMainWindow();
-    
+
     // Получение списка секретов в хранилище
     ipcMain.handle('fetch-secrets', async (ev, kv) => {
-        mainWindowMenu.items.forEach(item => {
-            item.submenu.items.forEach(itemSubmenu => {
-                itemSubmenu.enabled = false;
-            })
-        });
-
-        // await new Promise(res => setTimeout(res, 2000));
-
-        mainWindowMenu.items.forEach(item => {
-            item.submenu.items.forEach(itemSubmenu => {
-                itemSubmenu.enabled = true;
-            })
-        });
-
-        return ['test 123'];
+        try {
+            mainWindowMenu.items.forEach(item => {
+                item.submenu.items.forEach(itemSubmenu => {
+                    itemSubmenu.enabled = false;
+                })
+            });
+    
+            editingData.selectedSecretName = undefined;
+            
+            const keyVault = new KeyVault(kv);   
+            
+            const names = await keyVault.getSecretNames();
+    
+            mainWindowMenu.items.forEach(item => {
+                item.submenu.items.forEach(itemSubmenu => {
+                    itemSubmenu.enabled = true;
+                })
+            });
+    
+            return names;
+        } catch (error) {
+            dialog.showErrorBox('Ошибка', ['Не удалось запросить список секретов.', error.stack].join('\n\n'));
+            return [];
+        }
     });
 
     // Получение содержимого секрета
     ipcMain.handle('fetch-secret', async (ev, opts) => {
-        mainWindowMenu.items.forEach(item => {
-            item.submenu.items.forEach(itemSubmenu => {
-                itemSubmenu.enabled = false;
-            })
-        });
+        try {
+            mainWindowMenu.items.forEach(item => {
+                item.submenu.items.forEach(itemSubmenu => {
+                    itemSubmenu.enabled = false;
+                })
+            });
+    
+            const { secretName, kv } = opts;
+    
+            editingData.selectedSecretName = secretName;
+            
+            const keyVault = new KeyVault(kv);   
+            
+            const secretContent = await keyVault.getSecretContent(secretName);       
+    
+            mainWindowMenu.items.forEach(item => {
+                item.submenu.items.forEach(itemSubmenu => {
+                    itemSubmenu.enabled = true;
+                })
+            });
 
-        const { secretName, kv } = opts;
-        // await new Promise(res => setTimeout(res, 2000));
-
-        mainWindowMenu.items.forEach(item => {
-            item.submenu.items.forEach(itemSubmenu => {
-                itemSubmenu.enabled = true;
-            })
-        });
-        return JSON.stringify(opts);
+            return secretContent;
+        } catch (error) {
+            dialog.showErrorBox('Ошибка', ['Не удалось запросить содержимое секрета.', error.stack].join('\n\n'));
+            return false;
+        }
     });
 
     // Передача данных для окна создания\редактирования хранилищ
@@ -357,26 +406,32 @@ app.whenReady().then(() => {
         return editingData;
     });
 
-    ipcMain.handle('save-secret', (ev, opts) => {
+    // Сохранение изменений в секрете
+    ipcMain.handle('save-secret', async (ev, opts) => {
         const { kv, secretName, secretContent } = opts;
         
-        return false;
-
         try {
+            const keyVault = new KeyVault(kv);   
+            await keyVault.setSecretContent(secretName, secretContent);  
+
             return true;
         } catch (error) {
+            dialog.showErrorBox('Ошибка', ['Не удалось изменить секрет.', error.stack].join('\n\n'));
             return false;
         }
     });
 
-    ipcMain.handle('delete-secret', (ev, opts) => {
+    // Удаление секрета
+    ipcMain.handle('delete-secret', async (ev, opts) => {
         const { kv, secretName } = opts;
 
-        return false;
-
         try {
+            const keyVault = new KeyVault(kv);   
+            await keyVault.deleteSecret(secretName);  
+
             return true;
         } catch (error) {
+            dialog.showErrorBox('Ошибка', ['Не удалось удалить секрет.', error.stack].join('\n\n'));
             return false;
         }
     });

@@ -19,16 +19,25 @@ export default class KVSecret {
             throw new Error('Попытка запросить новый секрет!');
         }
 
-        this.content = await electronAPI.fetchSecret(this.name, this.parentKeyVault.origin);
-        this.fetched = true;
+        const result: string | false = await electronAPI.fetchSecret(this.name, this.parentKeyVault.origin);
 
-        return this.content;
+        if (typeof result === 'string') {
+            this.fetched = true;
+            this.content = result;
+        }
+
+        return result;
     }
 
     async save() {
-        if (!this.fetched) return;
+        if (!this.isNew && !this.fetched) return;
 
         const result = await window.electronAPI.saveSecret(this.parentKeyVault.origin, this.name, this.content);
+
+        if (result) {
+            this.fetched = true;
+            this.isNew = false;
+        }
         
         return result;
     }

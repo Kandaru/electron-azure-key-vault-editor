@@ -1,11 +1,16 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
-    import type KVSecret from "../../classes/KVSecret";
+    import KVSecret from "../../classes/KVSecret";
+    import type KeyVault from "../../classes/KeyVault";
 
     export let secrets: KVSecret[] = [];
-    export let selectedSecret: KVSecret = secrets[0];
+    export let selectedSecret: KVSecret = undefined;
+    export let selectedKeyVault: KeyVault = undefined;
 
-    const dispatch = createEventDispatcher();
+    const dispatch = createEventDispatcher<{
+        fetching: boolean;
+        refetchSecrets: void;
+    }>();
 
     let query = '';
     let findedSecrets = [];
@@ -13,10 +18,17 @@
     async function selectSecret(secret: KVSecret) {
         dispatch('fetching', true);
 
-        await secret.fetch();
-        selectedSecret = secret;
+        const result = await secret.fetch();
+
+        if (typeof result === 'string') {
+            selectedSecret = secret;
+        }
 
         dispatch('fetching', false);
+    }
+
+    function createSecret() {
+        selectedSecret = new KVSecret('', selectedKeyVault, true);
     }
 
     $: findedSecrets = secrets.filter(secret => secret.name.includes(query));
@@ -26,7 +38,7 @@
     <div class="flex">
         <input bind:value={query} type="text" class="w-full h-full px-2 focus:outline-none text-2xl" placeholder="Поиск...">
         <div class="bg-white px-2">
-            <button class="bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white p-1 m-1 rounded-sm text-xl font-semibold">
+            <button on:click={() => dispatch('refetchSecrets')} class="bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-white p-1 m-1 rounded-sm text-xl font-semibold">
                 Обновить
             </button>
         </div>
@@ -45,6 +57,6 @@
         {/each}
     </div>
     <div class="bg-white h-max px-4 py-2">
-        <button class="min-h-[60px] w-full rounded-md bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-3xl text-white font-semibold">Добавить</button>
+        <button on:click={createSecret} class="min-h-[60px] w-full rounded-md bg-purple-600 hover:bg-purple-700 active:bg-purple-800 text-3xl text-white font-semibold">Добавить</button>
     </div>
 </div>
