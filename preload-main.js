@@ -5,5 +5,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onFormat: (callback) => ipcRenderer.on('format', (ev) => callback()),
     onKVSelected: (callback) => ipcRenderer.on('kv-selected', (ev, kv) => callback(kv)),
     fetchSecrets: (kv) => ipcRenderer.invoke('fetch-secrets', kv),
-    fetchSecret: (secretName, kv) => ipcRenderer.invoke('fetch-secret', { secretName, kv })
+    fetchSecret: (secretName, kv) => ipcRenderer.invoke('fetch-secret', { secretName, kv }),
+    saveSecret: (kv, secretName, secretContent) => ipcRenderer.invoke('save-secret', { kv, secretName, secretContent }),
+    deleteSecret: (kv, secretName) => ipcRenderer.invoke('delete-secret', { kv, secretName }),
 });

@@ -16,6 +16,11 @@ declare namespace electronAPI {
     function onKVSelected(callback: (kv: IKeyVault) => void): void;
     function fetchSecrets(kv: IKeyVault): Promise<string[]>;
     function fetchSecret(secretName: string, kv: IKeyVault): Promise<string>;
+    function fetchEditingData(): Promise<{ selectedKV: IKeyVault, allKVs: IKeyVault[], isNew: boolean }>;
+    function saveKV(editingData: { selectedKV: IKeyVault, isNew: boolean }): Promise<void>;
+    function cancelEditing(): Promise<void>;
+    function saveSecret(kv, secretName, secretContent): Promise<boolean>;
+    function deleteSecret(kv, secretName): Promise<boolean>;
 }
 
 declare var selectedKeyVault: IKeyVault;

@@ -1,7 +1,6 @@
 const { app, BrowserWindow, ipcMain, Menu, MenuItem, dialog, nativeTheme } = require("electron");
 const path = require('path');
 const fs = require('fs');
-const { globalParams } = require("./global-params");
 
 if (require('electron-squirrel-startup')) app.quit();
 
@@ -11,7 +10,7 @@ let mainWindow;
 let editingWindow;
 let mainWindowMenu;
 
-let selectedKV;
+let editingData = {};
 
 function createMainWindow() {
     settings = getSettings();
@@ -24,8 +23,8 @@ function createMainWindow() {
         },
     });
     vaults = getVaults(win);
+    editingData.allKVs = vaults;
     mainWindowMenu = createMenu(win, vaults);
-
 
     win.loadFile('./pages/build/index.html').then(() => {
         win.webContents.send('kv-selected', vaults[0]);
@@ -61,6 +60,7 @@ function createVaultEditWindow() {
     });
 
     editingWindow = win;
+    // win.webContents.openDevTools();
 
     win.on('close', () => {
         createMainWindow();
@@ -121,7 +121,6 @@ function getVaults(win) {
 
     if (!fileExist) {
         fs.appendFileSync(filePath, '[]');
-        return vaults;
     } else {
         try {
             const fileData = JSON.parse(fs.readFileSync(filePath));
@@ -137,19 +136,20 @@ function getVaults(win) {
             }
 
             vaults = fileData;
-
-            return vaults;
         } catch (error) {
             dialog.showMessageBox(win, { message: 'Файл с хранилищами содержит недопустимое значение.', title: 'Ошибка' });
-            return vaults;
         }
     }
+
+    editingData.allKVs = vaults;
+    return vaults;
 }
 
 function saveVaults(win, newVaults) {
     const fileName = 'vaults-cfg.json';
     const filePath = path.join(__dirname, fileName);
     const fileExist = fs.existsSync(filePath);
+    editingData.allKVs = newVaults;
 
     try {
         if (fileExist) {
@@ -162,14 +162,14 @@ function saveVaults(win, newVaults) {
     }
 }
 
-function createMenu(win, settings) {
+function createMenu(win) {
     const menu = new Menu();
 
     const voltesMenuItem = new MenuItem({
         label: 'Хранилища',
         submenu: [{
             label: 'Выбрать',
-            submenu: settings.map(kv => ({
+            submenu: vaults.map(kv => ({
                 label: kv.name || kv.kvName,
                 type: 'radio',
                 click: (item, window) => {
@@ -180,15 +180,14 @@ function createMenu(win, settings) {
             type: 'separator'
         }, {
             label: 'Изменить',
-            submenu: settings.map(kv => ({
+            submenu: vaults.map(kv => ({
                 label: kv.name || kv.kvName,
                 type: 'normal',
                 click: (item, window) => {
+                    editingData.isNew = false;
+                    editingData.selectedKV = kv;
+
                     createVaultEditWindow();
-                    
-                    globalParams.selectedKV = kv;
-                    globalParams.isEditingNew = false;
-                    
                     window.close();
                 }
             }))
@@ -196,7 +195,7 @@ function createMenu(win, settings) {
             type: 'separator'
         }, {
             label: 'Удалить',
-            submenu: settings.map(kv => ({
+            submenu: vaults.map(kv => ({
                 label: kv.name || kv.kvName,
                 type: 'normal',
                 click: (item, window) => {
@@ -216,9 +215,9 @@ function createMenu(win, settings) {
                     vaults = vaults.filter(vault => vault !== kv);
 
                     saveVaults(window, vaults);
+                    win.webContents.send('kv-selected', vaults[0]);
 
-                    app.relaunch();
-                    window.close();
+                    createMenu(win);
                 }
             }))
         }, {
@@ -226,10 +225,10 @@ function createMenu(win, settings) {
         }, {
             label: 'Добавить',
             click: (item, window) => {
+                editingData.isNew = true;
+                editingData.selectedKV = {};
+
                 createVaultEditWindow();
-                globalParams.selectedKV = {};
-                globalParams.isEditingNew = true;
-                
                 window.close();
             }
         }]
@@ -316,13 +315,12 @@ app.whenReady().then(() => {
     createMainWindow();
     
     // Получение списка секретов в хранилище
-    ipcMain.handle('fetch-secrets', async (kv) => {
+    ipcMain.handle('fetch-secrets', async (ev, kv) => {
         mainWindowMenu.items.forEach(item => {
             item.submenu.items.forEach(itemSubmenu => {
                 itemSubmenu.enabled = false;
             })
         });
-        
 
         // await new Promise(res => setTimeout(res, 2000));
 
@@ -336,7 +334,7 @@ app.whenReady().then(() => {
     });
 
     // Получение содержимого секрета
-    ipcMain.handle('fetch-secret', async (opts) => {
+    ipcMain.handle('fetch-secret', async (ev, opts) => {
         mainWindowMenu.items.forEach(item => {
             item.submenu.items.forEach(itemSubmenu => {
                 itemSubmenu.enabled = false;
@@ -352,6 +350,54 @@ app.whenReady().then(() => {
             })
         });
         return JSON.stringify(opts);
+    });
+
+    // Передача данных для окна создания\редактирования хранилищ
+    ipcMain.handle('get-editing-data', () => {
+        return editingData;
+    });
+
+    ipcMain.handle('save-secret', (ev, opts) => {
+        const { kv, secretName, secretContent } = opts;
+        
+        return false;
+
+        try {
+            return true;
+        } catch (error) {
+            return false;
+        }
+    });
+
+    ipcMain.handle('delete-secret', (ev, opts) => {
+        const { kv, secretName } = opts;
+
+        return false;
+
+        try {
+            return true;
+        } catch (error) {
+            return false;
+        }
+    });
+
+    // Сохранение хранилища после редактирования
+    ipcMain.on('save-kv', (ev, editedKVData) => {
+        const indexOfEdited = vaults.indexOf(editingData.selectedKV);
+
+        if (editedKVData.isNew || indexOfEdited === -1) {
+            vaults.push(editedKVData.selectedKV);
+        } else {
+            vaults[indexOfEdited] = editedKVData.selectedKV;
+        }
+        saveVaults(editingWindow, vaults);
+
+        editingWindow.close();
+    });
+
+    // Закрытие окна редактирования\создания
+    ipcMain.on('cancel-editing', () => {
+        editingWindow.close();
     });
 
     app.on('activate', () => {

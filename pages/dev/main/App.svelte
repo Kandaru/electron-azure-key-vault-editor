@@ -10,6 +10,8 @@
   let secrets: KVSecret[] = [];
   let selectedSecret: KVSecret;
   let fetching: boolean = false;
+  let savingSecret: boolean = false;
+  let error: Error;
 
   window.electronAPI.onKVSelected(async (kv) => {
     if (kv) {
@@ -31,6 +33,23 @@
       document.title = 'Приложулька';
     }
   });
+
+  async function catchError(err: Error) {
+    error = err;
+
+    setTimeout(() => {
+      error = undefined;
+    }, 3000);
+  }
+
+  async function onDeleteSecret() {
+    fetching = true;
+
+    secrets = await selectedKeyVault.fetch();
+    selectedSecret = undefined;
+
+    fetching = false;
+  }
 </script>
 
 <svelte:head>
@@ -39,11 +58,24 @@
 <div
   class="w-screen h-screen min-w-[600px] min-h-[300px] grid grid-cols-[1fr,2fr] bg-purple-800 gap-1"
 >
+  <!-- Overlay Types -->
   {#if fetching}
     <Overlay >
       <p>Запрос секретов...</p>
     </Overlay>
   {/if}
+  {#if error}
+    <Overlay>
+      <p class="max-w-[50%] w-max whitespace-nowrap">{error.message}</p>
+    </Overlay>
+  {/if}
+  {#if savingSecret}
+    <Overlay>
+      <p>Сохранение секрета...</p>
+    </Overlay>
+  {/if}
+
+  <!-- Editor Main -->
   {#if selectedKeyVault}
     <SecretsList 
       on:fetching={({ detail }) => fetching = detail} 
@@ -52,7 +84,10 @@
 
     {#if selectedSecret}
       <SecretEditor 
-        {selectedSecret} />
+        {selectedSecret} 
+        on:error={({ detail }) => catchError(detail)} 
+        on:delete={onDeleteSecret} 
+        on:save={({ detail }) => savingSecret = detail} />
     {/if}
   {:else}
     <Overlay>

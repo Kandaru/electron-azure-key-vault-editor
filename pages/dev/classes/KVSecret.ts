@@ -5,6 +5,7 @@ export default class KVSecret {
     content: string;
     isNew: boolean;
     parentKeyVault: KeyVault;
+    fetched: boolean = false;
 
     constructor(secretName: string, kv: KeyVault, isNew?: boolean) {
         this.name = secretName;
@@ -19,15 +20,26 @@ export default class KVSecret {
         }
 
         this.content = await electronAPI.fetchSecret(this.name, this.parentKeyVault.origin);
+        this.fetched = true;
 
         return this.content;
     }
 
     async save() {
+        if (!this.fetched) return;
 
+        const result = await window.electronAPI.saveSecret(this.parentKeyVault.origin, this.name, this.content);
+        
+        return result;
     }
 
     async delete() {
-        
+        if (this.isNew) {
+            throw new Error('Попытка удалить новый секрет!');
+        }
+
+        const result = await window.electronAPI.deleteSecret(this.parentKeyVault.origin, this.name);
+
+        return result;
     }
 }

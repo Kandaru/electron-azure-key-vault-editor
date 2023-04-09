@@ -1,8 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
-const { globalParams } = require('./global-params');
 
-contextBridge.exposeInMainWorld('globalParams', {
-    getSelectedKeyVault: () => ({ ...globalParams.selectedKV }),
-    getAllVaults: () => [...globalParams.allVaults.map(kv => ({ ...kv }))],
-    isEditingKVNew: () => globalParams.isEditingNew
+contextBridge.exposeInMainWorld('electronAPI', {
+    fetchEditingData: () => ipcRenderer.invoke('get-editing-data'),
+    saveKV: (editingData) => ipcRenderer.send('save-kv', editingData),
+    cancelEditing: () => ipcRenderer.send('cancel-editing'),
 });
