@@ -30,7 +30,7 @@ function createMainWindow() {
 
     win.loadFile('./pages/build/index.html')
 
-    win.webContents.openDevTools();
+    // win.webContents.openDevTools();
 
     win.on('close', () => {
         const winSize = win.getSize();
@@ -220,6 +220,7 @@ function createMenu(win) {
 
                     if (!vaults.length) {
                         editingData.selectedKV = undefined;
+                        editingData.secretNames = undefined;
                         win.webContents.send('kv-selected', undefined);
                     } else if (kv === editingData.selectedKV) {
                         editingData.selectedKV = vaults[0];
@@ -276,12 +277,14 @@ function createMenu(win) {
                     {
                         label: 'Все',
                         click: (item, window) => {
-                            exportSecrets(['1', '2', '3']);
+                            exportSecrets(editingData.secretNames);
                         }
                     }, {
                         label: 'Выбранный',
                         click: (item, window) => {
-                            exportSecrets([editingData.selectedSecretName]);
+                            if (editingData.selectedSecretName) {
+                                exportSecrets([editingData.selectedSecretName]);
+                            }
                         }
                     }
                 ]
@@ -322,12 +325,16 @@ function createMenu(win) {
 }
 
 async function exportSecrets(secretNames) {
-    if (!editingData.selectedSecretName || !editingData.selectedKV) return;
+    if (!editingData.selectedKV) return;
 
     const savePath = dialog.showSaveDialogSync(mainWindow ?? editingWindow, {
         defaultPath: path.resolve(homedir()),
         filters: [ { name: 'JSON', extensions: ['json'] }, { name: 'Text', extensions: ['txt'] } ]
     });
+
+    if (!savePath) {
+        return;
+    }
 
     const data = {};
     const keyVault = new KeyVault(editingData.selectedKV);   
@@ -338,7 +345,7 @@ async function exportSecrets(secretNames) {
         data[secretName] = await keyVault.getSecretContent(secretName);  
     }
 
-    fs.writeFileSync(savePath, JSON.stringify(data, undefined, '    '));
+    fs.writeFileSync(savePath, JSON.stringify(data));
 }
 
 app.whenReady().then(() => {
@@ -358,6 +365,8 @@ app.whenReady().then(() => {
             const keyVault = new KeyVault(kv);   
             
             const names = await keyVault.getSecretNames();
+
+            editingData.secretNames = names;
     
             mainWindowMenu.items.forEach(item => {
                 item.submenu.items.forEach(itemSubmenu => {

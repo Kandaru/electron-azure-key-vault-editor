@@ -19,6 +19,9 @@
     let isValid = false;
     let editor;
 
+    let deleteAttempt: boolean = false;
+    let deleteAttemptTimeout;
+
     function enableValidation({ detail: ace }) {
         ace.getSession().on("changeAnnotation", function () {
             var annot = ace.getSession().getAnnotations();
@@ -76,6 +79,28 @@
         dispatch('delete', false);
     }
 
+    async function tryToDelete(event) {
+        if (!deleteAttempt) {
+            event.target.disabled = true;
+            deleteAttempt = true;
+
+            setTimeout(() => {
+                event.target.disabled = false;
+            }, 1000);
+
+            deleteAttemptTimeout = setTimeout(
+                () => (deleteAttempt = false),
+                5000
+            );
+
+            return;
+        }
+
+        del();
+        deleteAttempt = false;
+        clearTimeout(deleteAttemptTimeout);
+    }
+
     onMount(() => {
         window.electronAPI?.onFormat(beautify);
     });
@@ -110,9 +135,9 @@
         >
         <button
             disabled={selectedSecret.isNew}
-            on:click={del}
+            on:click={tryToDelete}
             class="min-h-[60px] w-full rounded-md bg-red-600 hover:bg-red-700 active:bg-red-800 disabled:bg-red-300 disabled:hover:bg-red-300 text-3xl text-white font-semibold"
-            >Удалить</button
+            >{deleteAttempt ? 'Уверены?' : 'Удалить'}</button
         >
     </div>
 </div>

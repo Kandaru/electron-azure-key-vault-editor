@@ -60,7 +60,7 @@
 
     setTimeout(() => {
       error = undefined;
-    }, 3000);
+    }, 2000);
   }
 
   async function refetchSecrets() {
@@ -83,9 +83,10 @@
   async function onSaveSecret(status: boolean) {
     savingSecret = status;
 
-    if (!status && !secrets.includes(selectedSecret)) {
+    if (!status && !secrets.includes(selectedSecret) && !selectedSecret.isNew) {
       const temp = selectedSecret;
 
+      await selectedSecret.fetch();
       secrets = [...secrets, selectedSecret];
       selectedSecret = undefined;
 
