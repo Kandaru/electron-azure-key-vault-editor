@@ -377,6 +377,13 @@ app.whenReady().then(() => {
             return names;
         } catch (error) {
             dialog.showErrorBox('Ошибка', ['Не удалось запросить список секретов.', error.stack].join('\n\n'));
+
+            mainWindowMenu.items.forEach(item => {
+                item.submenu.items.forEach(itemSubmenu => {
+                    itemSubmenu.enabled = true;
+                })
+            });
+
             return [];
         }
     });
@@ -407,6 +414,13 @@ app.whenReady().then(() => {
             return secretContent;
         } catch (error) {
             dialog.showErrorBox('Ошибка', ['Не удалось запросить содержимое секрета.', error.stack].join('\n\n'));
+
+            mainWindowMenu.items.forEach(item => {
+                item.submenu.items.forEach(itemSubmenu => {
+                    itemSubmenu.enabled = true;
+                })
+            });
+
             return false;
         }
     });
